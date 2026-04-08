@@ -1,6 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from "groq-sdk";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export interface ParsedEvent {
   title: string;
@@ -9,15 +9,13 @@ export interface ParsedEvent {
   endTime: string;    // HH:MM (24h)
   description: string;
   timezone: string;
-  withMeet: boolean;  // generate Google Meet link?
+  withMeet: boolean;
 }
 
 export async function parseSchedulePrompt(
   prompt: string,
   userTimezone: string = "Asia/Jakarta"
 ): Promise<ParsedEvent> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
   const now = new Date().toLocaleString("id-ID", { timeZone: userTimezone });
 
   const systemPrompt = `Kamu adalah asisten penjadwalan. Ekstrak informasi event dari prompt user.
@@ -41,15 +39,20 @@ Aturan:
 - title harus dalam bahasa yang sama dengan prompt user
 - withMeet = true jika prompt menyebut: meet, google meet, video call, online, zoom, virtual, meeting online, panggilan video, atau sejenisnya
 - withMeet = false untuk reminder, deadline, atau event offline
-- Jika tidak ada info event yang bisa diparse, return: {"error": "tidak bisa parse"}
+- Jika tidak ada info event yang bisa diparse, return: {"error": "tidak bisa parse"}`;
 
-Prompt user: "${prompt}"`;
+  const completion = await groq.chat.completions.create({
+    model: "llama-3.1-8b-instant",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: prompt },
+    ],
+    temperature: 0.1,
+    response_format: { type: "json_object" },
+  });
 
-  const result = await model.generateContent(systemPrompt);
-  const text = result.response.text().trim();
-
-  const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-  const parsed = JSON.parse(cleaned);
+  const text = completion.choices[0]?.message?.content ?? "";
+  const parsed = JSON.parse(text);
 
   if (parsed.error) {
     throw new Error(parsed.error);
