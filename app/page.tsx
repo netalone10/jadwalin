@@ -33,12 +33,8 @@ export default function LandingPage() {
 
           {/* Demo prompt */}
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-8 text-left">
-            <p className="text-sm text-gray-400 mb-2 font-medium">Contoh:</p>
-            {[
-              "Meeting sama Budi besok jam 3 sore",
-              "Deadline laporan 20 April jam 23:59",
-              "Presentasi klien Jumat depan jam 10 pagi",
-            ].map((ex) => (
+            <p className="text-sm text-gray-400 mb-2 font-medium">{t.examplesLabel}</p>
+            {t.examples.map((ex) => (
               <div key={ex} className="flex items-center gap-2 py-1.5">
                 <span className="text-blue-400">→</span>
                 <span className="text-sm text-gray-700">{ex}</span>
