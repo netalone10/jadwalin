@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   // Create Google Calendar event
   let googleEventId: string | null = null;
   try {
-    googleEventId = await createCalendarEvent(accessToken, {
+    const result = await createCalendarEvent(accessToken, {
       startTime,
       endTime,
       bookerName,
@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
       timezone: page.timezone,
       notes: notes ?? undefined,
     });
+    googleEventId = result.eventId;
   } catch (err) {
     console.error("Failed to create calendar event:", err);
     return NextResponse.json(
