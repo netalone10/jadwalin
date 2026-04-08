@@ -89,6 +89,13 @@ export default function DashboardPage() {
     }
   };
 
+  const removeFromList = (eventId: string) => {
+    const updated = history.filter((h) => h.googleEventId !== eventId);
+    setHistory(updated);
+    localStorage.setItem("jadwalin_history", JSON.stringify(updated));
+    if (lastResult?.googleEventId === eventId) setLastResult(null);
+  };
+
   const handleDelete = async (event: ScheduledEvent) => {
     if (!confirm(t.deleteConfirm)) return;
     setDeletingId(event.googleEventId);
@@ -97,11 +104,9 @@ export default function DashboardPage() {
       const res = await fetch(`/api/schedule/${event.googleEventId}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error();
-      const updated = history.filter((h) => h.googleEventId !== event.googleEventId);
-      setHistory(updated);
-      localStorage.setItem("jadwalin_history", JSON.stringify(updated));
-      if (lastResult?.googleEventId === event.googleEventId) setLastResult(null);
+      // 404 = already deleted from GCal, still remove from list
+      if (!res.ok && res.status !== 404) throw new Error();
+      removeFromList(event.googleEventId);
       setDeleteMsg(t.deleteSuccess);
       setTimeout(() => setDeleteMsg(null), 3000);
     } catch {

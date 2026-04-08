@@ -20,7 +20,15 @@ export async function DELETE(
 
   const accessToken = await getValidToken(session.userId);
 
-  await deleteCalendarEvent(accessToken, eventId);
+  try {
+    await deleteCalendarEvent(accessToken, eventId);
+  } catch (err: unknown) {
+    const status = (err as { code?: number })?.code;
+    if (status === 404 || status === 410) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+    throw err;
+  }
 
   return NextResponse.json({ success: true });
 }
