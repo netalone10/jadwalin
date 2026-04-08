@@ -7,12 +7,14 @@ import { createCalendarEvent } from "@/utils/calendar";
 import { parseSchedulePrompt } from "@/utils/gemini";
 import { Resend } from "resend";
 import { format } from "date-fns";
+import { id as localeId } from "date-fns/locale";
 import { toZonedTime } from "date-fns-tz";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
+
   if (!session?.userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -23,8 +25,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Prompt kosong" }, { status: 400 });
   }
 
-  // 1. Parse prompt with Gemini
-  let parsed;
+  let parsed: Awaited<ReturnType<typeof parseSchedulePrompt>>;
+
   try {
     parsed = await parseSchedulePrompt(prompt, timezone);
   } catch (err: unknown) {
@@ -32,17 +34,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 422 });
   }
 
-  // 2. Get user info
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { name: true, email: true },
   });
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  if (!user?.email) {
+    return NextResponse.json({ error: "User tidak punya email" }, { status: 404 });
   }
 
-  // 3. Get valid Google token
   let accessToken: string;
+
   try {
     accessToken = await getValidToken(session.userId);
   } catch {
@@ -52,24 +54,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 4. Build ISO datetime strings
   const startISO = `${parsed.date}T${parsed.startTime}:00`;
   const endISO = `${parsed.date}T${parsed.endTime}:00`;
 
-  // 5. Create Google Calendar event
   let googleEventId: string;
   let meetLink: string | undefined;
+
   try {
     const result = await createCalendarEvent(accessToken, {
       startTime: startISO,
       endTime: endISO,
-      bookerName: user.name,
+      bookerName: user.name ?? "User",
       bookerEmail: user.email,
       eventTitle: parsed.title,
       timezone: parsed.timezone,
       notes: parsed.description || undefined,
       withMeet: parsed.withMeet,
     });
+
     googleEventId = result.eventId;
     meetLink = result.meetLink;
   } catch (err) {
@@ -80,10 +82,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 6. Send confirmation email (fire and forget)
   const zonedStart = toZonedTime(new Date(startISO), parsed.timezone);
   const zonedEnd = toZonedTime(new Date(endISO), parsed.timezone);
-  const timeDisplay = `${format(zonedStart, "EEEE, d MMMM yyyy")} • ${format(zonedStart, "HH:mm")} – ${format(zonedEnd, "HH:mm")} (${parsed.timezone})`;
+
+  const timeDisplay = `${format(zonedStart, "EEEE, d MMMM yyyy", {
+    locale: localeId,
+  })} • ${format(zonedStart, "HH:mm")} – ${format(zonedEnd, "HH:mm")} (${parsed.timezone})`;
 
   resend.emails
     .send({
@@ -98,7 +102,7 @@ export async function POST(req: NextRequest) {
             <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#111">${parsed.title}</p>
             ${parsed.description ? `<p style="margin:0 0 12px;color:#555;font-size:14px">${parsed.description}</p>` : ""}
             <p style="margin:0 0 8px;color:#3B82F6;font-weight:500;font-size:14px">${timeDisplay}</p>
-            ${meetLink ? `<a href="${meetLink}" style="display:inline-block;margin-top:8px;padding:8px 16px;background:#1a73e8;color:white;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500">🎥 Join Google Meet</a>` : ""}
+            ${meetLink ? `<a href="${meetLink}" style="display:inline-block;margin-top:8px;padding:8px 16px;background:#1a73e8;color:white;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500">Join Google Meet</a>` : ""}
           </div>
           <p style="color:#888;font-size:12px">Dikirim oleh Jadwalin</p>
         </div>
