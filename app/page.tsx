@@ -4,10 +4,14 @@ import { useSession, signIn } from "next-auth/react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
+import { useLang } from "@/components/LangToggle";
+import { LANG } from "@/constants/lang";
 
 export default function LandingPage() {
   const { status } = useSession();
   const router = useRouter();
+  const [lang] = useLang();
+  const t = LANG[lang];
 
   useEffect(() => {
     if (status === "authenticated") router.push("/dashboard");
@@ -22,12 +26,10 @@ export default function LandingPage() {
         <div className="max-w-xl mx-auto">
           <div className="text-5xl mb-6">🗓</div>
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-tight mb-4">
-            Jadwalkan dengan{" "}
-            <span className="text-blue-600">bahasa natural</span>
+            {t.heroHeadline}{" "}
+            <span className="text-blue-600">{t.heroHighlight}</span>
           </h1>
-          <p className="text-lg text-gray-500 mb-8">
-            Ketik jadwalmu seperti chat biasa. Jadwalin akan langsung simpan ke Google Calendar dan kirim email konfirmasi.
-          </p>
+          <p className="text-lg text-gray-500 mb-8">{t.heroSubtitle}</p>
 
           {/* Demo prompt */}
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-8 text-left">
@@ -49,11 +51,11 @@ export default function LandingPage() {
             className="inline-flex items-center gap-3 px-6 py-3.5 bg-blue-600 text-white rounded-xl font-semibold text-base hover:bg-blue-700 transition-colors shadow-sm"
           >
             <GoogleIcon />
-            Mulai dengan Google
+            {t.startWithGoogle}
           </button>
 
           <div className="mt-4 flex flex-col items-center gap-2">
-            <p className="text-sm text-gray-400">Butuh akses? Request dulu via WhatsApp</p>
+            <p className="text-sm text-gray-400">{t.requestAccessNote}</p>
             <a
               href={`https://wa.me/16282812956?text=${encodeURIComponent("test user: [your email]")}`}
               target="_blank"
@@ -61,7 +63,7 @@ export default function LandingPage() {
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white rounded-xl font-medium text-sm hover:bg-green-600 transition-colors"
             >
               <WhatsAppIcon />
-              Request Akses
+              {t.requestAccess}
             </a>
           </div>
         </div>

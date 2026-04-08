@@ -96,6 +96,31 @@ export const LANG = {
       "Juli", "Agustus", "September", "Oktober", "November", "Desember",
     ],
 
+    // AI Scheduler
+    greeting: "Halo",
+    schedulerSubtitle: "Ketik jadwal kamu, Jadwalin akan langsung simpan ke Google Calendar.",
+    promptPlaceholder: "Contoh:\n\"Meeting sama Budi besok jam 3 sore\"\n\"Deadline laporan 20 April jam 23:59\"\n\"Gym setiap Senin jam 7 pagi\"",
+    submitBtn: "Jadwalkan",
+    submitting: "Memproses...",
+    enterHint: "Enter untuk kirim · Shift+Enter untuk baris baru",
+    addedToCalendar: "Sudah ditambahkan ke Google Calendar · Email konfirmasi dikirim",
+    historyTitle: "Riwayat",
+    openCalendar: "Buka Calendar →",
+    emptyState: "Belum ada jadwal. Ketik sesuatu di atas!",
+    deleteEvent: "Hapus",
+    editEvent: "Edit",
+    deleteConfirm: "Hapus jadwal ini dari Google Calendar?",
+    deleteSuccess: "Jadwal dihapus dari Google Calendar.",
+    deleteError: "Gagal menghapus jadwal.",
+
+    // Landing (AI Scheduler)
+    heroHeadline: "Jadwalkan dengan",
+    heroHighlight: "bahasa natural",
+    heroSubtitle: "Ketik jadwalmu seperti chat biasa. Jadwalin akan langsung simpan ke Google Calendar dan kirim email konfirmasi.",
+    startWithGoogle: "Mulai dengan Google",
+    requestAccess: "Request Akses",
+    requestAccessNote: "Butuh akses? Request dulu via WhatsApp",
+
     // Nav
     dashboard: "Dashboard",
     logout: "Keluar",
@@ -195,6 +220,31 @@ export const LANG = {
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December",
     ],
+
+    // AI Scheduler
+    greeting: "Hello",
+    schedulerSubtitle: "Type your schedule, Jadwalin will save it to Google Calendar instantly.",
+    promptPlaceholder: "Examples:\n\"Meeting with Budi tomorrow at 3 PM\"\n\"Report deadline April 20 at 11:59 PM\"\n\"Gym every Monday at 7 AM\"",
+    submitBtn: "Schedule",
+    submitting: "Processing...",
+    enterHint: "Enter to submit · Shift+Enter for new line",
+    addedToCalendar: "Added to Google Calendar · Confirmation email sent",
+    historyTitle: "History",
+    openCalendar: "Open Calendar →",
+    emptyState: "No schedules yet. Type something above!",
+    deleteEvent: "Delete",
+    editEvent: "Edit",
+    deleteConfirm: "Remove this event from Google Calendar?",
+    deleteSuccess: "Event deleted from Google Calendar.",
+    deleteError: "Failed to delete event.",
+
+    // Landing (AI Scheduler)
+    heroHeadline: "Schedule with",
+    heroHighlight: "natural language",
+    heroSubtitle: "Type your schedule like a chat. Jadwalin will save it to Google Calendar and send a confirmation email.",
+    startWithGoogle: "Start with Google",
+    requestAccess: "Request Access",
+    requestAccessNote: "Need access? Request via WhatsApp first",
 
     // Nav
     dashboard: "Dashboard",

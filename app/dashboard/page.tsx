@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { useLang } from "@/components/LangToggle";
+import { LANG } from "@/constants/lang";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 
@@ -24,19 +25,21 @@ export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [lang] = useLang();
+  const t = LANG[lang];
 
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<ScheduledEvent[]>([]);
   const [lastResult, setLastResult] = useState<ScheduledEvent | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
   }, [status, router]);
 
-  // Load history from localStorage
   useEffect(() => {
     const stored = localStorage.getItem("jadwalin_history");
     if (stored) {
@@ -71,7 +74,7 @@ export default function DashboardPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? "Terjadi kesalahan, coba lagi.");
+        setError(data.error ?? t.genericError);
         return;
       }
 
@@ -80,9 +83,32 @@ export default function DashboardPage() {
       saveToHistory(eventWithTime);
       setPrompt("");
     } catch {
-      setError("Tidak bisa terhubung ke server.");
+      setError(t.genericError);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (event: ScheduledEvent) => {
+    if (!confirm(t.deleteConfirm)) return;
+    setDeletingId(event.googleEventId);
+    setDeleteMsg(null);
+    try {
+      const res = await fetch(`/api/schedule/${event.googleEventId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error();
+      const updated = history.filter((h) => h.googleEventId !== event.googleEventId);
+      setHistory(updated);
+      localStorage.setItem("jadwalin_history", JSON.stringify(updated));
+      if (lastResult?.googleEventId === event.googleEventId) setLastResult(null);
+      setDeleteMsg(t.deleteSuccess);
+      setTimeout(() => setDeleteMsg(null), 3000);
+    } catch {
+      setDeleteMsg(t.deleteError);
+      setTimeout(() => setDeleteMsg(null), 3000);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -120,11 +146,9 @@ export default function DashboardPage() {
         {/* Greeting */}
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-gray-900">
-            Halo, {session?.user?.name?.split(" ")[0]} 👋
+            {t.greeting}, {session?.user?.name?.split(" ")[0]} 👋
           </h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Ketik jadwal kamu, Jadwalin akan langsung simpan ke Google Calendar.
-          </p>
+          <p className="text-gray-500 mt-1 text-sm">{t.schedulerSubtitle}</p>
         </div>
 
         {/* Prompt Input */}
@@ -135,13 +159,13 @@ export default function DashboardPage() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={`Contoh:\n"Meeting sama Budi besok jam 3 sore"\n"Deadline laporan 20 April jam 23:59"\n"Gym setiap Senin jam 7 pagi"`}
+              placeholder={t.promptPlaceholder}
               rows={4}
               disabled={loading}
               className="w-full px-4 pt-4 pb-2 text-sm resize-none focus:outline-none rounded-t-2xl bg-transparent placeholder:text-gray-400"
             />
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-              <p className="text-xs text-gray-400">Enter untuk kirim · Shift+Enter untuk baris baru</p>
+              <p className="text-xs text-gray-400">{t.enterHint}</p>
               <button
                 type="submit"
                 disabled={loading || !prompt.trim()}
@@ -150,12 +174,12 @@ export default function DashboardPage() {
                 {loading ? (
                   <>
                     <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Memproses...
+                    {t.submitting}
                   </>
                 ) : (
                   <>
                     <span>📅</span>
-                    Jadwalkan
+                    {t.submitBtn}
                   </>
                 )}
               </button>
@@ -170,12 +194,19 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Delete feedback */}
+        {deleteMsg && (
+          <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
+            {deleteMsg}
+          </div>
+        )}
+
         {/* Success Result */}
         {lastResult && (
           <div className="mb-6 px-4 py-4 bg-green-50 border border-green-200 rounded-xl">
             <div className="flex items-start gap-3">
               <span className="text-2xl">✅</span>
-              <div>
+              <div className="flex-1">
                 <p className="font-semibold text-gray-900">{lastResult.title}</p>
                 <p className="text-sm text-green-700 mt-0.5">{formatEventTime(lastResult)}</p>
                 {lastResult.description && (
@@ -191,10 +222,15 @@ export default function DashboardPage() {
                     🎥 Join Google Meet
                   </a>
                 )}
-                <p className="text-xs text-gray-400 mt-2">
-                  Sudah ditambahkan ke Google Calendar · Email konfirmasi dikirim
-                </p>
+                <p className="text-xs text-gray-400 mt-2">{t.addedToCalendar}</p>
               </div>
+              <button
+                onClick={() => handleDelete(lastResult)}
+                disabled={deletingId === lastResult.googleEventId}
+                className="text-xs text-red-500 hover:underline disabled:opacity-40"
+              >
+                {t.deleteEvent}
+              </button>
             </div>
           </div>
         )}
@@ -203,7 +239,7 @@ export default function DashboardPage() {
         {history.length > 0 && (
           <div>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-              Riwayat
+              {t.historyTitle}
             </h2>
             <div className="space-y-2">
               {history.map((event, i) => (
@@ -227,14 +263,23 @@ export default function DashboardPage() {
                       </a>
                     )}
                   </div>
-                  <a
-                    href="https://calendar.google.com/calendar/r"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-500 hover:underline flex-shrink-0 mt-0.5"
-                  >
-                    Buka Calendar →
-                  </a>
+                  <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+                    <a
+                      href="https://calendar.google.com/calendar/r"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-500 hover:underline"
+                    >
+                      {t.openCalendar}
+                    </a>
+                    <button
+                      onClick={() => handleDelete(event)}
+                      disabled={deletingId === event.googleEventId}
+                      className="text-xs text-red-500 hover:underline disabled:opacity-40"
+                    >
+                      {deletingId === event.googleEventId ? "..." : t.deleteEvent}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -244,7 +289,7 @@ export default function DashboardPage() {
         {history.length === 0 && !lastResult && (
           <div className="text-center py-12 text-gray-400">
             <p className="text-4xl mb-3">🗓</p>
-            <p className="text-sm">Belum ada jadwal. Ketik sesuatu di atas!</p>
+            <p className="text-sm">{t.emptyState}</p>
           </div>
         )}
 
