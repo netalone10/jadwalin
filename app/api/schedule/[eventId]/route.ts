@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getValidToken } from "@/utils/token";
-import { deleteCalendarEvent } from "@/utils/calendar";
+import { deleteCalendarEvent, updateCalendarEvent } from "@/utils/calendar";
 
 export async function DELETE(
   _req: NextRequest,
@@ -29,6 +29,28 @@ export async function DELETE(
     }
     throw err;
   }
+
+  return NextResponse.json({ success: true });
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { eventId } = await params;
+  const { title, date, startTime, endTime, timezone } = await req.json();
+
+  if (!title || !date || !startTime || !endTime || !timezone) {
+    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  const accessToken = await getValidToken(session.userId);
+  await updateCalendarEvent(accessToken, eventId, { title, date, startTime, endTime, timezone });
 
   return NextResponse.json({ success: true });
 }

@@ -17,7 +17,7 @@ export function Navbar() {
     <nav className="border-b border-gray-200 bg-white sticky top-0 z-50">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link href="/" className="font-bold text-lg tracking-tight">
-          ScheduleAI
+          Jadwalin
         </Link>
 
         <div className="flex items-center gap-2">

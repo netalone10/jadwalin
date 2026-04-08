@@ -34,6 +34,9 @@ export default function DashboardPage() {
   const [lastResult, setLastResult] = useState<ScheduledEvent | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", date: "", startTime: "", endTime: "" });
+  const [savingId, setSavingId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -94,6 +97,37 @@ export default function DashboardPage() {
     setHistory(updated);
     localStorage.setItem("jadwalin_history", JSON.stringify(updated));
     if (lastResult?.googleEventId === eventId) setLastResult(null);
+  };
+
+  const startEdit = (event: ScheduledEvent) => {
+    setEditingId(event.googleEventId);
+    setEditForm({ title: event.title, date: event.date, startTime: event.startTime, endTime: event.endTime });
+  };
+
+  const handleSaveEdit = async (event: ScheduledEvent) => {
+    setSavingId(event.googleEventId);
+    try {
+      const res = await fetch(`/api/schedule/${event.googleEventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...editForm, timezone: event.timezone }),
+      });
+      if (!res.ok) throw new Error();
+      const updated = history.map((h) =>
+        h.googleEventId === event.googleEventId ? { ...h, ...editForm } : h
+      );
+      setHistory(updated);
+      localStorage.setItem("jadwalin_history", JSON.stringify(updated));
+      if (lastResult?.googleEventId === event.googleEventId) {
+        setLastResult({ ...lastResult, ...editForm });
+      }
+      setEditingId(null);
+    } catch {
+      setDeleteMsg(t.deleteError);
+      setTimeout(() => setDeleteMsg(null), 3000);
+    } finally {
+      setSavingId(null);
+    }
   };
 
   const handleDelete = async (event: ScheduledEvent) => {
@@ -250,41 +284,96 @@ export default function DashboardPage() {
               {history.map((event, i) => (
                 <div
                   key={i}
-                  className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-start gap-3"
+                  className="bg-white border border-gray-200 rounded-xl px-4 py-3"
                 >
-                  <span className="text-lg mt-0.5">📅</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{event.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{formatEventTime(event)}</p>
-                    {event.meetLink && (
-                      <a
-                        href={event.meetLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-500 hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        🎥 Join Meet
-                      </a>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
-                    <a
-                      href="https://calendar.google.com/calendar/r"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-500 hover:underline"
-                    >
-                      {t.openCalendar}
-                    </a>
-                    <button
-                      onClick={() => handleDelete(event)}
-                      disabled={deletingId === event.googleEventId}
-                      className="text-xs text-red-500 hover:underline disabled:opacity-40"
-                    >
-                      {deletingId === event.googleEventId ? "..." : t.deleteEvent}
-                    </button>
-                  </div>
+                  {editingId === event.googleEventId ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={editForm.title}
+                        onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-400"
+                        placeholder="Judul"
+                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={editForm.date}
+                          onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-400"
+                        />
+                        <input
+                          type="time"
+                          value={editForm.startTime}
+                          onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
+                          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-400"
+                        />
+                        <input
+                          type="time"
+                          value={editForm.endTime}
+                          onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
+                          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-400"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleSaveEdit(event)}
+                          disabled={savingId === event.googleEventId}
+                          className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40"
+                        >
+                          {savingId === event.googleEventId ? "..." : "Simpan"}
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50"
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <span className="text-lg mt-0.5">📅</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{event.title}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{formatEventTime(event)}</p>
+                        {event.meetLink && (
+                          <a
+                            href={event.meetLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-500 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            🎥 Join Meet
+                          </a>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+                        <a
+                          href="https://calendar.google.com/calendar/r"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-500 hover:underline"
+                        >
+                          {t.openCalendar}
+                        </a>
+                        <button
+                          onClick={() => startEdit(event)}
+                          className="text-xs text-gray-500 hover:underline"
+                        >
+                          {t.editEvent}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(event)}
+                          disabled={deletingId === event.googleEventId}
+                          className="text-xs text-red-500 hover:underline disabled:opacity-40"
+                        >
+                          {deletingId === event.googleEventId ? "..." : t.deleteEvent}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

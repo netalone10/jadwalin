@@ -5,9 +5,9 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "ScheduleAI — Professional Booking Pages",
+  title: "Jadwalin — Jadwalkan dengan Bahasa Natural",
   description:
-    "Create a professional booking page with Google Calendar sync. Free alternative to Calendly.",
+    "Ketik jadwalmu seperti chat biasa. Jadwalin simpan langsung ke Google Calendar.",
 };
 
 export default function RootLayout({

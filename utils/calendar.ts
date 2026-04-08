@@ -87,6 +87,35 @@ export async function createCalendarEvent(
   return { eventId: res.data.id!, meetLink };
 }
 
+export async function updateCalendarEvent(
+  accessToken: string,
+  eventId: string,
+  {
+    title,
+    date,
+    startTime,
+    endTime,
+    timezone,
+  }: {
+    title: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    timezone: string;
+  }
+): Promise<void> {
+  const calendar = getCalendarClient(accessToken);
+  await calendar.events.patch({
+    calendarId: "primary",
+    eventId,
+    requestBody: {
+      summary: title,
+      start: { dateTime: `${date}T${startTime}:00`, timeZone: timezone },
+      end: { dateTime: `${date}T${endTime}:00`, timeZone: timezone },
+    },
+  });
+}
+
 export async function deleteCalendarEvent(
   accessToken: string,
   eventId: string
