@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(uuid())
+  googleId      String        @unique @map("google_id")
+  email         String        @unique
+  name          String
+  image         String?
+  accessToken   String?       @map("access_token")
+  refreshToken  String?       @map("refresh_token")
+  tokenExpiry   DateTime?     @map("token_expiry")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  bookingPages  BookingPage[]
+
+  @@map("users")
+}
+
+model BookingPage {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  slug            String    @unique
+  title           String
+  description     String?
+  durationMinutes Int       @default(30) @map("duration_minutes")
+  bufferMinutes   Int       @default(0) @map("buffer_minutes")
+  timezone        String    @default("Asia/Jakarta")
+  accentColor     String    @default("#3B82F6") @map("accent_color")
+  workingDays     Int[]     @default([1, 2, 3, 4, 5]) @map("working_days")
+  workingStart    String    @default("09:00") @map("working_start")
+  workingEnd      String    @default("17:00") @map("working_end")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings        Booking[]
+
+  @@map("booking_pages")
+}
+
+model Booking {
+  id             String      @id @default(uuid())
+  bookingPageId  String      @map("booking_page_id")
+  bookerName     String      @map("booker_name")
+  bookerEmail    String      @map("booker_email")
+  startTime      DateTime    @map("start_time")
+  endTime        DateTime    @map("end_time")
+  googleEventId  String?     @map("google_event_id")
+  status         String      @default("confirmed")
+  notes          String?
+  createdAt      DateTime    @default(now()) @map("created_at")
+  bookingPage    BookingPage @relation(fields: [bookingPageId], references: [id], onDelete: Cascade)
+
+  @@map("bookings")
+}
