@@ -31,6 +31,11 @@ export async function getBusySlots(
     .map((b) => ({ start: b.start!, end: b.end! }));
 }
 
+export interface CreateEventResult {
+  eventId: string;
+  meetLink?: string;
+}
+
 export async function createCalendarEvent(
   accessToken: string,
   {
@@ -41,6 +46,7 @@ export async function createCalendarEvent(
     eventTitle,
     timezone,
     notes,
+    withMeet = false,
   }: {
     startTime: string;
     endTime: string;
@@ -49,22 +55,36 @@ export async function createCalendarEvent(
     eventTitle: string;
     timezone: string;
     notes?: string;
+    withMeet?: boolean;
   }
-): Promise<string> {
+): Promise<CreateEventResult> {
   const calendar = getCalendarClient(accessToken);
 
   const res = await calendar.events.insert({
     calendarId: "primary",
+    conferenceDataVersion: withMeet ? 1 : 0,
     requestBody: {
-      summary: `${eventTitle} with ${bookerName}`,
+      summary: eventTitle,
       description: notes || undefined,
       start: { dateTime: startTime, timeZone: timezone },
       end: { dateTime: endTime, timeZone: timezone },
-      attendees: [{ email: bookerEmail }],
+      ...(withMeet && {
+        conferenceData: {
+          createRequest: {
+            requestId: `meet-${Date.now()}`,
+            conferenceSolutionKey: { type: "hangoutsMeet" },
+          },
+        },
+      }),
     },
   });
 
-  return res.data.id!;
+  const meetLink =
+    res.data.conferenceData?.entryPoints?.find(
+      (e) => e.entryPointType === "video"
+    )?.uri ?? undefined;
+
+  return { eventId: res.data.id!, meetLink };
 }
 
 export async function deleteCalendarEvent(
