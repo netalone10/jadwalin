@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/Project/**)",
+      "Bash(npx create-next-app@latest jadwalin --typescript --tailwind --app --no-git --yes)"
+    ]
+  }
+}
