@@ -47,6 +47,7 @@ export async function createCalendarEvent(
     timezone,
     notes,
     withMeet = false,
+    externalMeetingLink,
   }: {
     startTime: string;
     endTime: string;
@@ -56,16 +57,30 @@ export async function createCalendarEvent(
     timezone: string;
     notes?: string;
     withMeet?: boolean;
+    externalMeetingLink?: string;
   }
 ): Promise<CreateEventResult> {
   const calendar = getCalendarClient(accessToken);
+
+  // Build description: append external link if provided
+  let description = notes || "";
+  if (externalMeetingLink) {
+    const linkLabel = externalMeetingLink.includes("zoom.us")
+      ? "Zoom Link"
+      : externalMeetingLink.includes("teams.microsoft.com")
+      ? "Teams Link"
+      : "Meeting Link";
+    description = description
+      ? `${description}\n\n${linkLabel}: ${externalMeetingLink}`
+      : `${linkLabel}: ${externalMeetingLink}`;
+  }
 
   const res = await calendar.events.insert({
     calendarId: "primary",
     conferenceDataVersion: withMeet ? 1 : 0,
     requestBody: {
       summary: eventTitle,
-      description: notes || undefined,
+      description: description || undefined,
       start: { dateTime: startTime, timeZone: timezone },
       end: { dateTime: endTime, timeZone: timezone },
       ...(withMeet && {

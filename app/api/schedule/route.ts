@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
       timezone: parsed.timezone,
       notes: parsed.description || undefined,
       withMeet: hasExternalLink ? false : parsed.withMeet,
+      externalMeetingLink: hasExternalLink ? parsed.meetingLink : undefined,
     });
 
     googleEventId = result.eventId;
