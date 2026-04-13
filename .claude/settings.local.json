@@ -4,7 +4,9 @@
       "Read(//d/Project/**)",
       "Bash(npx create-next-app@latest jadwalin --typescript --tailwind --app --no-git --yes)",
       "Bash(rtk pnpm:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(npm install:*)"
     ]
   }
 }

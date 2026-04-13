@@ -10,6 +10,7 @@ export interface ParsedEvent {
   description: string;
   timezone: string;
   withMeet: boolean;
+  meetingLink: string; // external link provided by user, empty string if none
 }
 
 export async function parseSchedulePrompt(
@@ -29,7 +30,8 @@ Balas HANYA dengan JSON valid, tanpa markdown, tanpa penjelasan:
   "endTime": "HH:MM",
   "description": "deskripsi singkat jika ada, kosong jika tidak ada",
   "timezone": "${userTimezone}",
-  "withMeet": true atau false
+  "withMeet": true atau false,
+  "meetingLink": "URL meeting external jika ada, kosong jika tidak ada"
 }
 
 Aturan:
@@ -37,8 +39,11 @@ Aturan:
 - Jika waktu tidak disebutkan, gunakan 09:00
 - Resolve tanggal relatif (besok, minggu depan, dll) ke tanggal absolut
 - title harus dalam bahasa yang sama dengan prompt user
-- withMeet = true jika prompt menyebut: meet, google meet, video call, online, zoom, virtual, meeting online, panggilan video, atau sejenisnya
-- withMeet = false untuk reminder, deadline, atau event offline
+- Jika user menyertakan link/URL meeting (contoh: https://zoom.us/..., https://teams.microsoft.com/..., https://meet.google.com/..., atau URL meeting lainnya), AMBIL link tersebut ke meetingLink
+- Jika user menyertakan link meeting external (bukan Google Meet), set meetingLink = link tersebut dan withMeet = false
+- Jika user menyertakan link Google Meet, set meetingLink = link tersebut dan withMeet = false (karena sudah ada link, tidak perlu generate baru)
+- withMeet = true HANYA jika prompt menyebut ingin meeting online (meet, video call, online, virtual, dll) TAPI TIDAK menyertakan link
+- withMeet = false untuk reminder, deadline, event offline, atau jika link sudah disediakan user
 - Jika tidak ada info event yang bisa diparse, return: {"error": "tidak bisa parse"}`;
 
   const completion = await groq.chat.completions.create({

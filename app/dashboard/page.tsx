@@ -258,7 +258,7 @@ export default function DashboardPage() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    🎥 Join Google Meet
+                    🎥 {lastResult.meetLink.includes('meet.google.com') ? 'Join Google Meet' : 'Join Meeting'}
                   </a>
                 )}
                 <p className="text-xs text-gray-400 mt-2">{t.addedToCalendar}</p>
@@ -345,7 +345,7 @@ export default function DashboardPage() {
                             className="text-xs text-blue-500 hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            🎥 Join Meet
+                            🎥 {event.meetLink.includes('meet.google.com') ? 'Join Meet' : 'Join Meeting'}
                           </a>
                         )}
                       </div>

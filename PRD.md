@@ -1,9 +1,9 @@
 # PRD — Jadwalin
 **"Jadwalkan apa saja hanya dengan ketik."**
 
-Version: 1.0
+Version: 1.1
 Owner: Akbar Muharrom
-Status: MVP Live (localhost)
+Status: MVP Live (Vercel + localhost)
 Last Updated: April 2026
 
 ---
@@ -34,11 +34,13 @@ Buka Google Calendar, klik tanggal, isi form, pilih waktu, set reminder — terl
 | # | Fitur | Deskripsi |
 |---|---|---|
 | 1 | **Prompt input** | Textarea di dashboard, user ketik jadwal dalam bahasa natural (ID/EN) |
-| 2 | **AI parsing (Gemini)** | Parse prompt jadi: judul, tanggal, jam mulai, jam selesai, deskripsi, perlu Meet atau tidak |
+| 2 | **AI parsing (Groq)** | Parse prompt jadi: judul, tanggal, jam mulai, jam selesai, deskripsi, perlu Meet atau tidak |
 | 3 | **Google Calendar sync** | Event langsung dibuat di akun Google Calendar user yang login |
-| 4 | **Google Meet auto-generate** | Kalau prompt menyebut "meet", "online", "video call" → Meet link dibuat otomatis |
+| 4 | **Google Meet auto-generate** | Kalau prompt menyebut "meet", "online", "video call", "zoom" → Meet link dibuat otomatis |
 | 5 | **Email konfirmasi** | Email dikirim ke user berisi detail event + Meet link (jika ada) via Resend |
 | 6 | **Riwayat** | List event yang sudah dibuat, dengan link "Buka Calendar" dan "Join Meet" |
+| 7 | **Edit event** | Edit judul, tanggal, waktu langsung dari riwayat → sync ke Google Calendar |
+| 8 | **Hapus event** | Hapus event dari riwayat + Google Calendar sekaligus |
 
 ---
 
@@ -49,7 +51,7 @@ User ketik prompt
        ↓
 POST /api/schedule
        ↓
-Gemini 2.5 Flash parse prompt
+Groq LLaMA 3.1 8B parse prompt
 → { title, date, startTime, endTime, description, timezone, withMeet }
        ↓
 getValidToken(userId)        ← refresh Google token kalau expired
@@ -65,6 +67,9 @@ Send email via Resend         ← fire and forget, tidak blocking
        ↓
 Return response ke frontend
 → Tampilkan success card + Meet link
+
+Edit: PATCH /api/schedule/[eventId]  ← update di Google Calendar
+Hapus: DELETE /api/schedule/[eventId] ← hapus dari Google Calendar
 ```
 
 ---
@@ -73,16 +78,18 @@ Return response ke frontend
 
 | Layer | Tech | Versi | Catatan |
 |---|---|---|---|
-| Framework | Next.js | 16.2.2 | App Router, TypeScript |
-| Auth | NextAuth.js | v4 | Google OAuth 2.0 |
-| Database | Supabase (PostgreSQL) | — | Free tier |
-| ORM | Prisma | 6.x | Harus v6, bukan v7 (v7 tidak kompatibel dengan NextAuth adapter) |
-| AI | Google Gemini | 2.5 Flash | Via `@google/generative-ai` |
-| Calendar | googleapis | npm | Google Calendar API v3 |
-| Email | Resend | — | Free 3.000 email/bulan |
-| Font | Geist | npm | Via package `geist`, bukan Google Fonts CDN |
-| Styling | Tailwind CSS v4 + shadcn/ui v4 | — | shadcn v4 pakai `@base-ui/react`, tidak ada prop `asChild` di Button |
-| Deployment | Vercel | — | — |
+| Framework | Next.js | 16.2.2 | App Router, TypeScript, React 19 |
+| Auth | NextAuth.js | v4 | Google OAuth 2.0, JWT sessions |
+| Database | Supabase (PostgreSQL) | — | Free tier, pgbouncer connection pooling |
+| ORM | Prisma | 6.x | **Harus v6**, bukan v7 (v7 tidak kompatibel dengan NextAuth adapter) |
+| AI | Groq SDK | 1.1.2 | Model: `llama-3.1-8b-instant` — via `groq-sdk` npm package |
+| Calendar | googleapis | 171.4.0 | Google Calendar API v3 |
+| Email | Resend | 6.10.0 | Free 3.000 email/bulan |
+| Font | Geist | 1.7.0 | Via package `geist`, **bukan** Google Fonts CDN |
+| Styling | Tailwind CSS v4 + shadcn/ui v4 | — | shadcn v4 pakai `@base-ui/react`, **tidak ada prop `asChild` di Button** |
+| Date/Time | date-fns + date-fns-tz | 4.1.0 / 3.2.0 | Timezone-aware formatting |
+| Icons | Lucide React | 1.7.0 | — |
+| Deployment | Vercel | — | https://jadwalin-tau.vercel.app |
 
 ---
 
@@ -93,14 +100,16 @@ D:\Project\Jadwalin\
 ├── app/
 │   ├── page.tsx                          # Landing page
 │   ├── dashboard/
-│   │   └── page.tsx                      # Dashboard utama: prompt input + riwayat
+│   │   └── page.tsx                      # Dashboard utama: prompt input + riwayat + edit/hapus
 │   ├── book/[slug]/page.tsx              # (Legacy) Public booking page
 │   ├── pages/
 │   │   ├── new/page.tsx                  # (Legacy) Buat booking page
 │   │   └── [id]/edit/page.tsx            # (Legacy) Edit booking page
 │   └── api/
 │       ├── auth/[...nextauth]/route.ts   # NextAuth handler
-│       ├── schedule/route.ts             # ⭐ Core: Gemini → Calendar → Email
+│       ├── schedule/route.ts             # ⭐ Core: POST → Groq → Calendar → Email
+│       ├── schedule/[eventId]/route.ts   # ⭐ PATCH (edit) + DELETE (hapus) event
+│       ├── user/route.ts                 # GET/PUT user profile
 │       ├── booking-pages/route.ts        # (Legacy) CRUD booking pages
 │       ├── booking-pages/[id]/route.ts   # (Legacy) Edit/delete/get booking page
 │       ├── booking-pages/check-slug/     # (Legacy) Cek slug unik
@@ -109,34 +118,35 @@ D:\Project\Jadwalin\
 │       ├── bookings/confirm/route.ts     # (Legacy) Confirm booking
 │       ├── bookings/[id]/cancel/route.ts # (Legacy) Cancel booking
 │       ├── bookings/upcoming/route.ts    # (Legacy) Upcoming bookings
-│       ├── public/booking-pages/[slug]/  # (Legacy) Public booking page config
-│       └── user/route.ts                 # Get/update user profile
+│       └── public/booking-pages/[slug]/  # (Legacy) Public booking page config
 ├── components/
 │   ├── Navbar.tsx                        # Logo, lang toggle, avatar dropdown
-│   ├── LangToggle.tsx + useLang hook     # ID/EN toggle, simpan ke localStorage
-│   ├── Providers.tsx                     # SessionProvider wrapper
+│   ├── LangToggle.tsx                    # ID/EN toggle + useLang hook (simpan ke localStorage)
+│   ├── Providers.tsx                     # SessionProvider + LangProvider wrapper
 │   ├── BookingCalendar.tsx               # (Legacy) Date picker
 │   ├── BookingForm.tsx                   # (Legacy) Form booking
 │   ├── BookingPageCard.tsx               # (Legacy) Card booking page
 │   ├── BookingPageForm.tsx               # (Legacy) Form buat/edit booking page
-│   └── TimeSlotGrid.tsx                  # (Legacy) Grid slot waktu
+│   ├── TimeSlotGrid.tsx                  # (Legacy) Grid slot waktu
+│   └── ui/                               # shadcn/ui v4 components (button, card, input, dll)
 ├── utils/
-│   ├── gemini.ts                         # ⭐ Parse prompt → ParsedEvent via Gemini
-│   ├── calendar.ts                       # ⭐ Google Calendar: getBusy, createEvent, deleteEvent
-│   ├── token.ts                          # ⭐ getValidToken + auto-refresh
+│   ├── gemini.ts                         # ⭐ Parse prompt → ParsedEvent (NAMA FILE MENYESATKAN: pakai Groq, bukan Gemini)
+│   ├── calendar.ts                       # ⭐ Google Calendar: getBusy, createEvent, updateEvent, deleteEvent
+│   ├── token.ts                          # ⭐ getValidToken + auto-refresh OAuth token
 │   ├── email.ts                          # Resend: send confirmation + cancellation
 │   └── slots.ts                          # (Legacy) Hitung available slots
 ├── lib/
-│   ├── auth.ts                           # NextAuth authOptions
+│   ├── auth.ts                           # NextAuth authOptions (signIn, JWT, session callbacks)
 │   ├── prisma.ts                         # Prisma singleton client
-│   └── supabase.ts                       # Supabase client
+│   ├── supabase.ts                       # Supabase client
+│   └── utils.ts                          # cn() classname merger
 ├── constants/
-│   └── lang.ts                           # i18n strings ID + EN
+│   └── lang.ts                           # i18n strings ID + EN (~100+ string)
 ├── types/
 │   └── next-auth.d.ts                    # Extend Session type (userId, accessToken)
 ├── prisma/
 │   └── schema.prisma                     # 3 model: User, BookingPage, Booking
-├── proxy.ts                              # Auth middleware (Next.js 16: bukan middleware.ts)
+├── proxy.ts                              # Auth middleware (Next.js 16: pakai proxy.ts, bukan middleware.ts)
 └── .env.local                            # Credentials (di gitignore)
 ```
 
@@ -188,8 +198,8 @@ GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-xxxx
 
 # NextAuth
-NEXTAUTH_URL=http://localhost:3000        # ganti ke Vercel URL saat deploy
-NEXTAUTH_SECRET=xxxx                      # node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+NEXTAUTH_URL=https://jadwalin-tau.vercel.app   # ganti ke localhost:3000 untuk dev
+NEXTAUTH_SECRET=xxxx                            # node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
@@ -198,14 +208,14 @@ SUPABASE_SERVICE_ROLE_KEY=xxxx
 DATABASE_URL="postgresql://postgres.REF:PASS@aws-X-REGION.pooler.supabase.com:6543/postgres?pgbouncer=true"
 DIRECT_URL="postgresql://postgres.REF:PASS@aws-X-REGION.pooler.supabase.com:5432/postgres"
 
-# Gemini AI
-GEMINI_API_KEY=AIzaSy-xxxx               # dari aistudio.google.com
+# Groq AI (dari console.groq.com)
+GROQ_API_KEY=gsk_xxxx
 
 # Resend
-RESEND_API_KEY=re_xxxx                   # dari resend.com
+RESEND_API_KEY=re_xxxx                          # dari resend.com
 
 # App
-NEXT_PUBLIC_APP_URL=http://localhost:3000 # ganti ke Vercel URL saat deploy
+NEXT_PUBLIC_APP_URL=https://jadwalin-tau.vercel.app  # ganti ke localhost:3000 untuk dev
 ```
 
 ---
@@ -213,7 +223,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000 # ganti ke Vercel URL saat deploy
 ## 9. Setup Lokal (dari Nol)
 
 ```bash
-# 1. Install dependencies (sudah dilakukan, skip kalau clone fresh)
+# 1. Install dependencies
 npm install
 
 # 2. Generate Prisma client
@@ -230,6 +240,7 @@ npm run dev
 - Prisma tidak baca `.env.local` secara otomatis — harus set env variable manual di terminal (PowerShell syntax di atas)
 - `NEXTAUTH_SECRET` di-generate via Node, bukan `openssl` (Windows tidak punya openssl by default)
 - Supabase connection string format baru: `postgres.PROJECT_REF` sebagai username, bukan `postgres`
+- Untuk dev lokal, set `NEXTAUTH_URL` dan `NEXT_PUBLIC_APP_URL` ke `http://localhost:3000`
 
 ---
 
@@ -248,7 +259,7 @@ https://www.googleapis.com/auth/calendar.events
 http://localhost:3000/api/auth/callback/google
 
 # Production
-https://[app].vercel.app/api/auth/callback/google
+https://jadwalin-tau.vercel.app/api/auth/callback/google
 ```
 
 **Gotcha — Unverified App:**
@@ -259,16 +270,14 @@ Karena app minta Calendar scope (sensitive), Google wajib verifikasi sebelum bis
 
 ---
 
-## 11. AI Parsing — Gemini
+## 11. AI Parsing — Groq LLaMA
 
-**File:** `utils/gemini.ts`
+**File:** `utils/gemini.ts` *(nama file lama, isinya sudah pakai Groq — jangan rename karena import tersebar)*
 
-**Model:** `gemini-2.5-flash` (stable per April 2026)
-
-> ⚠️ Jangan pakai model lama: `gemini-2.0-flash` dan `gemini-1.5-flash` sudah dihapus Google untuk user baru. Kalau ada error 404, cek model yang tersedia:
-> ```javascript
-> node -e "fetch('https://generativelanguage.googleapis.com/v1beta/models?key=API_KEY').then(r=>r.json()).then(d=>d.models?.filter(m=>m.supportedGenerationMethods?.includes('generateContent')).forEach(m=>console.log(m.name)))"
-> ```
+**Provider:** [Groq Cloud](https://console.groq.com)
+**Model:** `llama-3.1-8b-instant`
+**Temperature:** 0.1 (sangat deterministik)
+**Response format:** JSON only (no markdown)
 
 **Output ParsedEvent:**
 ```typescript
@@ -279,9 +288,15 @@ interface ParsedEvent {
   endTime: string;    // "HH:MM" (24h)
   description: string;
   timezone: string;   // "Asia/Jakarta" (dari browser user)
-  withMeet: boolean;  // true jika prompt menyebut: meet, online, video call, dll
+  withMeet: boolean;  // true jika prompt menyebut: meet/online/video/zoom/dll
 }
 ```
+
+**Logika system prompt:**
+- Infer durasi (default 1 jam kalau tidak disebutkan)
+- Resolve relative date (besok, minggu depan, dll)
+- Output bahasa sama dengan input
+- JSON only, tidak ada teks penjelasan
 
 ---
 
@@ -289,7 +304,13 @@ interface ParsedEvent {
 
 **File:** `utils/calendar.ts`
 
-**Return:**
+**Fungsi utama:**
+- `getBusySlots()` — query freebusy API (dipakai Legacy)
+- `createCalendarEvent()` — insert event ke primary calendar
+- `updateCalendarEvent()` — PATCH event (title, date, time, timezone)
+- `deleteCalendarEvent()` — DELETE event
+
+**Return createCalendarEvent:**
 ```typescript
 interface CreateEventResult {
   eventId: string;
@@ -301,30 +322,48 @@ interface CreateEventResult {
 
 ---
 
-## 13. Fitur Berikutnya (Backlog)
+## 13. Token Refresh — getValidToken()
+
+**File:** `utils/token.ts`
+
+**Flow:**
+```
+getValidToken(userId)
+  → baca accessToken + tokenExpiry dari DB
+  → kalau expiry < 5 menit lagi: call refreshAccessToken()
+    → POST ke oauth2.googleapis.com/token dengan refreshToken
+    → simpan token baru ke DB
+  → return accessToken yang valid
+```
+
+Dipanggil di setiap API route yang butuh akses Google Calendar sebelum panggil Calendar API.
+
+---
+
+## 14. Fitur Berikutnya (Backlog)
 
 | Prioritas | Fitur | Catatan |
 |---|---|---|
 | 🔴 High | Simpan riwayat ke DB | Sekarang di localStorage, hilang kalau clear browser |
-| 🔴 High | Deploy ke Vercel | Belum production |
+| 🟡 Medium | Setup production env Vercel | Sudah deploy, perlu verify semua env vars di Vercel dashboard |
 | 🟡 Medium | Recurring event | "Setiap Senin jam 9" → event berulang |
-| 🟡 Medium | Edit / hapus event | Dari riwayat, bisa edit atau hapus event di Calendar |
-| 🟡 Medium | Timezone otomatis | Auto-detect dari browser sudah ada, tapi belum bisa di-override manual |
+| 🟡 Medium | Timezone manual override | Auto-detect dari browser sudah ada, tapi belum bisa di-override manual |
 | 🟢 Low | Notifikasi WhatsApp | Selain email, kirim reminder via WhatsApp |
 | 🟢 Low | Voice input | Ketik suara → prompt teks |
 | 🟢 Low | Integrasi Notion/Todoist | Sync task dari tools lain |
 
 ---
 
-## 14. Known Issues & Quirks
+## 15. Known Issues & Quirks
 
 | Issue | Status | Solusi |
 |---|---|---|
 | Next.js 16: `middleware.ts` deprecated | ✅ Fixed | Diganti `proxy.ts` |
-| Next.js 16: `params` async | ✅ Fixed | `const { id } = await params` |
+| Next.js 16: `params` async di dynamic routes | ✅ Fixed | `const { id } = await params` |
 | shadcn/ui v4: tidak ada `asChild` di Button | ✅ Fixed | Pakai `Link` + `buttonVariants()` langsung |
 | Prisma 7 tidak kompatibel dengan NextAuth adapter | ✅ Fixed | Downgrade ke Prisma 6 |
 | Google Fonts gagal fetch saat build | ✅ Fixed | Pakai package `geist` (local) |
 | Supabase connection string format baru | ✅ Fixed | `postgres.PROJECT_REF` sebagai username, port 6543 |
 | Google Calendar "Lihat →" link 400 error | ✅ Fixed | Link ke `calendar.google.com/calendar/r` saja |
-| Riwayat hilang saat clear browser | ⏳ Backlog | Perlu simpan ke DB |
+| `utils/gemini.ts` nama file menyesatkan | ⚠️ Known | File pakai Groq SDK, bukan Gemini — jangan rename, import tersebar |
+| Riwayat hilang saat clear browser | ⏳ Backlog | Perlu simpan ke DB (tambah tabel `ScheduledEvent`) |

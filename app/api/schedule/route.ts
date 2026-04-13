@@ -60,6 +60,9 @@ export async function POST(req: NextRequest) {
   let googleEventId: string;
   let meetLink: string | undefined;
 
+  // If user provided an external link, use that instead of generating Google Meet
+  const hasExternalLink = parsed.meetingLink && parsed.meetingLink.trim() !== "";
+
   try {
     const result = await createCalendarEvent(accessToken, {
       startTime: startISO,
@@ -69,11 +72,11 @@ export async function POST(req: NextRequest) {
       eventTitle: parsed.title,
       timezone: parsed.timezone,
       notes: parsed.description || undefined,
-      withMeet: parsed.withMeet,
+      withMeet: hasExternalLink ? false : parsed.withMeet,
     });
 
     googleEventId = result.eventId;
-    meetLink = result.meetLink;
+    meetLink = hasExternalLink ? parsed.meetingLink : result.meetLink;
   } catch (err) {
     console.error("Calendar error:", err);
     return NextResponse.json(
@@ -102,7 +105,7 @@ export async function POST(req: NextRequest) {
             <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#111">${parsed.title}</p>
             ${parsed.description ? `<p style="margin:0 0 12px;color:#555;font-size:14px">${parsed.description}</p>` : ""}
             <p style="margin:0 0 8px;color:#3B82F6;font-weight:500;font-size:14px">${timeDisplay}</p>
-            ${meetLink ? `<a href="${meetLink}" style="display:inline-block;margin-top:8px;padding:8px 16px;background:#1a73e8;color:white;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500">Join Google Meet</a>` : ""}
+            ${meetLink ? `<a href="${meetLink}" style="display:inline-block;margin-top:8px;padding:8px 16px;background:#1a73e8;color:white;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500">${hasExternalLink ? 'Join Meeting' : 'Join Google Meet'}</a>` : ""}
           </div>
           <p style="color:#888;font-size:12px">Dikirim oleh Jadwalin</p>
         </div>
