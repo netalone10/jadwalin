@@ -17,10 +17,15 @@ export async function parseSchedulePrompt(
   prompt: string,
   userTimezone: string = "Asia/Jakarta"
 ): Promise<ParsedEvent> {
-  const now = new Date().toLocaleString("id-ID", { timeZone: userTimezone });
+  const nowDate = new Date();
+  const now = nowDate.toLocaleString("id-ID", { timeZone: userTimezone });
+  const isoDate = nowDate.toISOString().split("T")[0]; // YYYY-MM-DD
+  const currentYear = nowDate.getFullYear();
 
   const systemPrompt = `Kamu adalah asisten penjadwalan. Ekstrak informasi event dari prompt user.
 Waktu sekarang: ${now} (${userTimezone})
+Tanggal hari ini (ISO): ${isoDate}
+Tahun sekarang: ${currentYear}
 
 Balas HANYA dengan JSON valid, tanpa markdown, tanpa penjelasan:
 {
@@ -35,9 +40,10 @@ Balas HANYA dengan JSON valid, tanpa markdown, tanpa penjelasan:
 }
 
 Aturan:
+- PENTING: Jika user tidak menyebutkan tahun, SELALU gunakan tahun ${currentYear}. JANGAN gunakan tahun lain.
 - Jika durasi tidak disebutkan, default 1 jam
 - Jika waktu tidak disebutkan, gunakan 09:00
-- Resolve tanggal relatif (besok, minggu depan, dll) ke tanggal absolut
+- Resolve tanggal relatif (besok, minggu depan, dll) ke tanggal absolut berdasarkan tanggal hari ini (${isoDate})
 - title harus dalam bahasa yang sama dengan prompt user
 - Jika user menyertakan link/URL meeting (contoh: https://zoom.us/..., https://teams.microsoft.com/..., https://meet.google.com/..., atau URL meeting lainnya), AMBIL link tersebut ke meetingLink
 - Jika user menyertakan link meeting external (bukan Google Meet), set meetingLink = link tersebut dan withMeet = false
